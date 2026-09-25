@@ -1,0 +1,9 @@
+services:
+  posejdon:
+    build: .
+    image: posejdon
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./devices.json:/config/devices.json:ro,Z

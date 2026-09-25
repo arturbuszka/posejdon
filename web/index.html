@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Posejdon</title>
+  <meta name="theme-color" content="#0e7490">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Posejdon">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="bar">
+    <h1 id="title">Posejdon</h1>
+    <select id="device-select" aria-label="Urządzenie" hidden></select>
+    <button id="settings-btn" class="icon-btn" aria-label="Ustawienia" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.47.47 0 0 0-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87a.47.47 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.61l-2.01-1.58ZM12 15.6a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2Z"/></svg>
+    </button>
+  </header>
+
+  <main id="app">
+    <p id="empty" class="muted" hidden>Brak skonfigurowanych fontann. Dodaj płytkę w <code>devices.json</code> na serwerze.</p>
+
+    <section id="pump" hidden>
+      <div class="card" id="status-card">
+        <div class="status-head">
+          <span id="status-dot" class="dot"></span>
+          <span id="status-summary" class="summary">Łączenie…</span>
+        </div>
+        <progress id="status-progress" max="1" value="0" hidden></progress>
+        <dl id="status-details" hidden>
+          <div><dt>Tryb</dt><dd id="d-mode"></dd></div>
+          <div><dt>Interwał</dt><dd id="d-interval"></dd></div>
+          <div><dt>Czas cyklu</dt><dd id="d-run"></dd></div>
+          <div id="d-presence-row"><dt>Czujnik obecności</dt><dd id="d-presence"></dd></div>
+          <div><dt>Cykli od startu</dt><dd id="d-cycles"></dd></div>
+          <div><dt>Czas pracy</dt><dd id="d-uptime"></dd></div>
+          <div id="d-rssi-row"><dt>Sygnał WiFi</dt><dd id="d-rssi"></dd></div>
+        </dl>
+      </div>
+
+      <div class="pour">
+        <label for="duration" class="pour-label">Lej teraz: <strong id="duration-value">30 s</strong></label>
+        <input id="duration" type="range" min="1" max="120" step="1" value="30">
+        <button id="pour-btn" class="primary">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.7S5 10.4 5 15a7 7 0 0 0 14 0c0-4.6-7-12.3-7-12.3Z"/></svg>
+          Lej teraz (tryb kot)
+        </button>
+        <button id="stop-btn" class="secondary" disabled>Zatrzymaj</button>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="settings">
+    <form id="settings-form" method="dialog" novalidate>
+      <header class="dialog-head">
+        <h2>Ustawienia urządzenia</h2>
+        <button type="button" id="settings-close" class="icon-btn" aria-label="Zamknij">✕</button>
+      </header>
+
+      <p id="settings-error" class="error" hidden></p>
+
+      <label class="field">
+        <span>Tryb pracy</span>
+        <select name="mode">
+          <option value="interval">Interwałowy</option>
+          <option value="on_demand">Na żądanie</option>
+          <option value="presence">Czujnik obecności</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Interwał (minuty)</span>
+        <input name="interval_minutes" inputmode="numeric" pattern="[0-9]*">
+        <small>Co ile urządzenie leje samo z siebie</small>
+      </label>
+      <label class="field">
+        <span>Czas cyklu (sekundy)</span>
+        <input name="run_seconds" inputmode="numeric" pattern="[0-9]*">
+        <small>Jak długo trwa jedno podlanie z harmonogramu</small>
+      </label>
+      <label class="field">
+        <span>Czas lania na żądanie (sekundy)</span>
+        <input name="manual_run_seconds" inputmode="numeric" pattern="[0-9]*">
+        <small>Domyślny czas przycisku „Lej teraz”</small>
+      </label>
+
+      <fieldset id="presence-fields">
+        <legend>Czujnik obecności</legend>
+        <p class="muted small">Te ustawienia trafiają też bezpośrednio do radaru HLK-LD2410C przez UART, nie są tylko zapisywane na urządzeniu.</p>
+        <label class="field">
+          <span>Odstęp między podlewaniami (minuty)</span>
+          <input name="presence_cooldown_minutes" inputmode="numeric" pattern="[0-9]*">
+          <small>Jak długo po wykryciu kota czujnik jest ignorowany</small>
+        </label>
+        <label class="field">
+          <span>Zasięg (bramka 0–8)</span>
+          <input name="presence_max_gate" inputmode="numeric" pattern="[0-9]*">
+          <small>Jak daleko radar ma patrzeć, każda bramka to ~0,75 m</small>
+        </label>
+        <label class="field">
+          <span>Czułość (0–100)</span>
+          <input name="presence_sensitivity" inputmode="numeric" pattern="[0-9]*">
+          <small>0 = najbardziej czuły, 100 = najmniej czuły</small>
+        </label>
+        <label class="field">
+          <span>Czas do „nikogo nie ma” (sekundy)</span>
+          <input name="presence_no_one_seconds" inputmode="numeric" pattern="[0-9]*">
+          <small>Jak długo brak ruchu, zanim czujnik uzna, że kot odszedł</small>
+        </label>
+      </fieldset>
+
+      <button type="submit" id="settings-save" class="primary">Zapisz na urządzeniu</button>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
