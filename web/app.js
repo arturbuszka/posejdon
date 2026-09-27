@@ -12,6 +12,12 @@ const MODE_LABELS = {
   presence: 'Czujnik obecności',
 };
 
+const SOURCE_LABELS = {
+  schedule: 'harmonogram',
+  manual: 'ręcznie',
+  presence: 'czujnik',
+};
+
 const $ = (id) => document.getElementById(id);
 
 const state = {
@@ -21,6 +27,11 @@ const state = {
   busy: false,
   // Suwak podąża za manual_run_seconds z urządzenia, dopóki użytkownik go nie ruszy.
   sliderTouched: false,
+  // Ostatnie zakończone cykle, najnowsze pierwsze, z godziną startu jako Date.
+  history: [],
+  // Historię pobieramy tylko, gdy ten klucz się zmieni - czyli gdy cykl
+  // ruszył albo się skończył - a nie przy każdym odpytaniu statusu.
+  historyKey: null,
 };
 
 let pollTimer = null;
@@ -65,6 +76,10 @@ const devicePath = (path) => `api/devices/${encodeURIComponent(state.deviceId)}/
 
 // ---------- Formatowanie (jak w kliencie Flutter) ----------
 
+// To samo co pump_schedule_active() w firmware: tryb interwałowy zawsze leje
+// z harmonogramu, pozostałe tylko z włączonym schedule_enabled.
+const scheduleActive = (cfg) => cfg.mode === 'interval' || !!cfg.schedule_enabled;
+
 function formatUptime(seconds) {
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
@@ -78,6 +93,26 @@ function formatInterval(seconds) {
   if (seconds >= 3600 && seconds % 3600 === 0) return `${seconds / 3600} h`;
   if (seconds >= 60) return `${Math.floor(seconds / 60)} min`;
   return `${seconds} s`;
+}
+
+// Płytka nie ma zegara, więc podaje czasy względem "teraz"; zamieniamy je na
+// godziny zegarem telefonu.
+function formatClock(date) {
+  const time = date.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return time;
+  if (date.toDateString() === yesterday.toDateString()) return `wczoraj ${time}`;
+  const day = date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' });
+  return `${day} ${time}`;
+}
+
+function formatDuration(seconds) {
+  if (seconds < 60) return `${seconds} s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s ? `${m} min ${s} s` : `${m} min`;
 }
 
 function formatLeft(seconds) {
@@ -96,8 +131,9 @@ function renderStatus() {
 
   let summary = 'Nieznany';
   if (s) {
+    const why = SOURCE_LABELS[s.source] ? ` (${SOURCE_LABELS[s.source]})` : '';
     summary = s.pumping
-      ? (s.seconds_left > 0 ? `Leje – zostało ${formatLeft(s.seconds_left)}` : 'Leje')
+      ? (s.seconds_left > 0 ? `Leje${why} – zostało ${formatLeft(s.seconds_left)}` : `Leje${why}`)
       : 'Bezczynna';
   }
   $('status-summary').textContent = summary;
@@ -110,6 +146,16 @@ function renderStatus() {
   $('status-details').hidden = !s;
   if (s) {
     $('d-mode').textContent = MODE_LABELS[s.mode] || s.mode;
+    const hasNext = typeof s.next_run_in_s === 'number';
+    $('d-next-row').hidden = !hasNext;
+    if (hasNext) {
+      const at = new Date(Date.now() + s.next_run_in_s * 1000);
+      const left = s.next_run_in_s < 60 ? 'za chwilę' : `za ${formatInterval(s.next_run_in_s)}`;
+      $('d-next').textContent = `${formatClock(at)} (${left})`;
+    }
+    const scheduled = scheduleActive(s);
+    $('d-interval-row').hidden = !scheduled;
+    $('d-run-row').hidden = !scheduled;
     $('d-interval').textContent = formatInterval(s.interval_seconds);
     $('d-run').textContent = `${s.run_seconds} s`;
     $('d-presence-row').hidden = s.mode !== 'presence';
@@ -124,6 +170,44 @@ function renderStatus() {
     }
   }
   renderControls();
+}
+
+function renderHistory() {
+  const list = $('history-list');
+  list.replaceChildren(...state.history.map((run) => {
+    const li = document.createElement('li');
+    const time = document.createElement('time');
+    time.dateTime = run.started.toISOString();
+    time.textContent = formatClock(run.started);
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    const parts = [SOURCE_LABELS[run.source] || run.source, formatDuration(run.seconds)];
+    if (run.stopped_early) parts.push(`przerwane z ${formatDuration(run.seconds_requested)}`);
+    meta.textContent = parts.join(' · ');
+    li.append(time, meta);
+    return li;
+  }));
+  $('history-empty').hidden = state.history.length > 0;
+}
+
+async function loadHistory() {
+  const deviceId = state.deviceId;
+  let data;
+  try {
+    data = await api(devicePath('history'));
+  } catch {
+    // Starsza płytka bez /api/history albo chwilowy błąd - spróbujemy przy
+    // następnej zmianie cyklu.
+    state.historyKey = null;
+    return;
+  }
+  if (deviceId !== state.deviceId) return;
+  const now = Date.now();
+  state.history = (data.runs || []).map((run) => ({
+    ...run,
+    started: new Date(now - run.started_ago_s * 1000),
+  }));
+  renderHistory();
 }
 
 function renderControls() {
@@ -166,6 +250,13 @@ async function poll() {
 
   state.status = status;
   renderStatus();
+  if (status) {
+    const key = `${status.cycle_count}:${status.pumping}`;
+    if (key !== state.historyKey) {
+      state.historyKey = key;
+      loadHistory();
+    }
+  }
   if (document.visibilityState === 'visible') {
     pollTimer = setTimeout(poll, POLL_MS);
   }
@@ -221,6 +312,9 @@ function selectDevice(id) {
   state.deviceId = device.id;
   state.status = null;
   state.sliderTouched = false;
+  state.history = [];
+  state.historyKey = null;
+  renderHistory();
   try { localStorage.setItem(DEVICE_KEY, device.id); } catch { /* prywatny tryb */ }
 
   $('title').textContent = device.name;
@@ -285,8 +379,14 @@ function settingsError(message) {
   el.hidden = !message;
 }
 
-function syncPresenceFields() {
-  $('presence-fields').hidden = form.elements.mode.value !== 'presence';
+function syncModeFields() {
+  const mode = form.elements.mode.value;
+  $('presence-fields').hidden = mode !== 'presence';
+  $('schedule-toggle').hidden = mode === 'interval';
+  $('schedule-fields').hidden = !scheduleActive({
+    mode,
+    schedule_enabled: form.elements.schedule_enabled.checked,
+  });
 }
 
 function setFormEnabled(enabled) {
@@ -302,10 +402,11 @@ async function openSettings() {
   try {
     const cfg = await api(devicePath('config'));
     form.elements.mode.value = cfg.mode;
+    form.elements.schedule_enabled.checked = !!cfg.schedule_enabled;
     for (const [name, key, scale] of FIELDS) {
       form.elements[name].value = Math.floor(cfg[key] / scale);
     }
-    syncPresenceFields();
+    syncModeFields();
     setFormEnabled(true);
   } catch (e) {
     settingsError(e.message);
@@ -314,13 +415,17 @@ async function openSettings() {
 
 $('settings-btn').addEventListener('click', openSettings);
 $('settings-close').addEventListener('click', () => dialog.close());
-form.elements.mode.addEventListener('change', syncPresenceFields);
+form.elements.mode.addEventListener('change', syncModeFields);
+form.elements.schedule_enabled.addEventListener('change', syncModeFields);
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   settingsError(null);
 
-  const body = { mode: form.elements.mode.value };
+  const body = {
+    mode: form.elements.mode.value,
+    schedule_enabled: form.elements.schedule_enabled.checked,
+  };
   for (const [name, key, scale] of FIELDS) {
     const raw = form.elements[name].value.trim();
     if (!/^\d+$/.test(raw)) {

@@ -98,6 +98,14 @@ func TestProxiesStatus(t *testing.T) {
 	}
 }
 
+func TestProxiesHistory(t *testing.T) {
+	pump, srv := withPump(t)
+	code, _ := do(t, "GET", srv.URL+"/api/devices/fontanna/history", "")
+	if code != 200 || pump.lastPath != "/api/history" {
+		t.Fatalf("got %d, board saw path %q", code, pump.lastPath)
+	}
+}
+
 func TestForwardsBody(t *testing.T) {
 	pump, srv := withPump(t)
 	code, _ := do(t, "POST", srv.URL+"/api/devices/fontanna/pump/on", `{"seconds":5}`)

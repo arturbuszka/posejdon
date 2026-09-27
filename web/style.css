@@ -149,6 +149,21 @@ dl div {
 dt { color: var(--muted); }
 dd { margin: 0; font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
 
+.history { margin-top: 24px; }
+.history h2 { margin: 0 0 6px; font-size: 17px; }
+.history ol { margin: 0; padding: 0; list-style: none; }
+.history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.history li:first-child { border-top: none; }
+.history time { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.history .meta { color: var(--muted); text-align: right; }
+.history p { margin: 6px 0 0; }
+
 .pour {
   display: flex;
   flex-direction: column;
@@ -258,6 +273,11 @@ dialog::backdrop { background: rgb(0 0 0 / .45); }
 }
 .field input:focus,
 .field select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+.field-group { display: flex; flex-direction: column; gap: 14px; }
+
+.check { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.check input { width: 22px; height: 22px; margin: 0; accent-color: var(--accent); }
 
 fieldset {
   display: flex;

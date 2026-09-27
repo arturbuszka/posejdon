@@ -35,8 +35,9 @@
         <progress id="status-progress" max="1" value="0" hidden></progress>
         <dl id="status-details" hidden>
           <div><dt>Tryb</dt><dd id="d-mode"></dd></div>
-          <div><dt>Interwał</dt><dd id="d-interval"></dd></div>
-          <div><dt>Czas cyklu</dt><dd id="d-run"></dd></div>
+          <div id="d-next-row"><dt>Następne lanie</dt><dd id="d-next"></dd></div>
+          <div id="d-interval-row"><dt>Interwał</dt><dd id="d-interval"></dd></div>
+          <div id="d-run-row"><dt>Czas cyklu</dt><dd id="d-run"></dd></div>
           <div id="d-presence-row"><dt>Czujnik obecności</dt><dd id="d-presence"></dd></div>
           <div><dt>Cykli od startu</dt><dd id="d-cycles"></dd></div>
           <div><dt>Czas pracy</dt><dd id="d-uptime"></dd></div>
@@ -52,6 +53,12 @@
           Lej teraz (tryb kot)
         </button>
         <button id="stop-btn" class="secondary" disabled>Zatrzymaj</button>
+      </div>
+
+      <div class="card history">
+        <h2>Ostatnie cykle</h2>
+        <ol id="history-list"></ol>
+        <p id="history-empty" class="muted small">Brak cykli od uruchomienia płytki.</p>
       </div>
     </section>
   </main>
@@ -74,16 +81,23 @@
         </select>
       </label>
 
-      <label class="field">
-        <span>Interwał (minuty)</span>
-        <input name="interval_minutes" inputmode="numeric" pattern="[0-9]*">
-        <small>Co ile urządzenie leje samo z siebie</small>
+      <label class="check" id="schedule-toggle">
+        <input type="checkbox" name="schedule_enabled">
+        <span>Dodatkowo podlewaj według harmonogramu</span>
       </label>
-      <label class="field">
-        <span>Czas cyklu (sekundy)</span>
-        <input name="run_seconds" inputmode="numeric" pattern="[0-9]*">
-        <small>Jak długo trwa jedno podlanie z harmonogramu</small>
-      </label>
+
+      <div id="schedule-fields" class="field-group">
+        <label class="field">
+          <span>Interwał (minuty)</span>
+          <input name="interval_minutes" inputmode="numeric" pattern="[0-9]*">
+          <small>Co ile urządzenie leje samo z siebie, licząc od startu do startu</small>
+        </label>
+        <label class="field">
+          <span>Czas cyklu (sekundy)</span>
+          <input name="run_seconds" inputmode="numeric" pattern="[0-9]*">
+          <small>Jak długo trwa jedno podlanie z harmonogramu</small>
+        </label>
+      </div>
       <label class="field">
         <span>Czas lania na żądanie (sekundy)</span>
         <input name="manual_run_seconds" inputmode="numeric" pattern="[0-9]*">

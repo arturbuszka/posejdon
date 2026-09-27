@@ -30,6 +30,7 @@ const maxBodyBytes = 4 << 10
 // dozwolonymi metodami. Reszta firmware'u (i cokolwiek dojdzie) nie wycieka.
 var allowedRoutes = map[string][]string{
 	"status":   {http.MethodGet},
+	"history":  {http.MethodGet},
 	"config":   {http.MethodGet, http.MethodPost},
 	"pump/on":  {http.MethodPost},
 	"pump/off": {http.MethodPost},

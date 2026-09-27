@@ -73,6 +73,7 @@ może uruchomić pompę. Nie wystawiaj portu 8080 do internetu.
 |---|---|---|
 | `GET` | `/api/devices` | Lista płytek `{id, name, type}` bez adresów |
 | `GET` | `/api/devices/{id}/status` | Proxy do `GET /api/status` na płytce |
+| `GET` | `/api/devices/{id}/history` | Proxy do `GET /api/history`: ostatnie cykle pompy |
 | `GET`, `POST` | `/api/devices/{id}/config` | Proxy do `/api/config` |
 | `POST` | `/api/devices/{id}/pump/on` | Proxy do `/api/pump/on`, body `{"seconds": N}` |
 | `POST` | `/api/devices/{id}/pump/off` | Proxy do `/api/pump/off` |
